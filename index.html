@@ -1,1372 +1,814 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ChemLab Quest – Acid–Base Adventure</title>
-    <style>
-      /* ── Reset & Base ─────────────────────────────────────── */
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <!-- Disable zoom on double-tap and pinch -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>ChemDrop: Acid-Base Lab</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-      :root {
-        --bg-dark: #0d0e1a;
-        --bg-card: #161830;
-        --bg-panel: #1e2140;
-        --accent1: #7c3aed; /* purple */
-        --accent2: #06b6d4; /* cyan */
-        --accent3: #10b981; /* green */
-        --danger: #ef4444;
-        --warn: #f59e0b;
-        --text: #e2e8f0;
-        --text-dim: #94a3b8;
-        --radius: 14px;
-        --shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
-      }
+    :root {
+      --acid-color: #ff4757;
+      --acid-glow:  #ff6b81;
+      --base-color: #1e90ff;
+      --base-glow:  #70b8ff;
+      --neutral-color: #2ed573;
+      --neutral-glow:  #7bed9f;
+      --bg-dark:  #0a0e1a;
+      --bg-panel: #111827;
+      --text-primary: #e2e8f0;
+      --text-dim:     #94a3b8;
+    }
 
-      body {
-        font-family: "Segoe UI", system-ui, sans-serif;
-        background: var(--bg-dark);
-        color: var(--text);
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        overflow-x: hidden;
-        padding: 12px;
-      }
+    /* ── Reset touch behaviours everywhere ── */
+    html, body {
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
 
-      /* animated star-field */
-      body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        z-index: 0;
-        background:
-          radial-gradient(
-            ellipse 80% 60% at 20% 15%,
-            rgba(124, 58, 237, 0.18) 0%,
-            transparent 60%
-          ),
-          radial-gradient(
-            ellipse 60% 50% at 80% 80%,
-            rgba(6, 182, 212, 0.14) 0%,
-            transparent 55%
-          ),
-          radial-gradient(
-            ellipse 50% 40% at 50% 50%,
-            rgba(16, 185, 129, 0.08) 0%,
-            transparent 60%
-          );
-        pointer-events: none;
-      }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow: hidden;
+      user-select: none;
+    }
 
-      /* ── Wrapper ──────────────────────────────────────────── */
-      #app {
-        position: relative;
-        z-index: 1;
-        width: 100%;
-        max-width: 680px;
-      }
+    /* ── Starfield ── */
+    #stars {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
 
-      /* ── Screens ──────────────────────────────────────────── */
-      .screen {
-        display: none;
-        animation: fadeIn 0.4s ease;
-      }
-      .screen.active {
-        display: block;
-      }
+    /* ── Wrapper — fluid, max 480px ── */
+    #wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
 
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(16px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
+    /* ── HUD ── */
+    #hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: var(--bg-panel);
+      border-radius: 14px 14px 0 0;
+      border: 1px solid #1e2d45;
+      border-bottom: none;
+    }
 
-      /* ── Card ─────────────────────────────────────────────── */
-      .card {
-        background: var(--bg-card);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: var(--radius);
-        padding: 28px 24px;
-        box-shadow: var(--shadow);
-      }
+    .hud-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .hud-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+    .hud-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(16px, 5vw, 22px);
+      color: var(--text-primary);
+    }
 
-      /* ── Start Screen ─────────────────────────────────────── */
-      #startScreen {
-        text-align: center;
-      }
-      .logo-icon {
-        font-size: 72px;
-        line-height: 1;
-        margin-bottom: 10px;
-        filter: drop-shadow(0 0 18px rgba(124, 58, 237, 0.7));
-      }
-      .game-title {
-        font-size: clamp(1.8rem, 6vw, 2.8rem);
-        font-weight: 800;
-        background: linear-gradient(135deg, var(--accent1), var(--accent2));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 6px;
-      }
-      .game-subtitle {
-        color: var(--text-dim);
-        font-size: clamp(0.85rem, 2.5vw, 1rem);
-        margin-bottom: 28px;
-      }
-      .mission-badges {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 10px;
-        margin-bottom: 30px;
-      }
-      .badge {
-        background: var(--bg-panel);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 50px;
-        padding: 7px 16px;
-        font-size: 0.8rem;
-        color: var(--accent2);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
+    .hearts { display: flex; gap: 4px; font-size: clamp(14px, 4vw, 18px); }
 
-      /* ── Buttons ──────────────────────────────────────────── */
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        min-height: 52px;
-        padding: 0 28px;
-        border-radius: 50px;
-        border: none;
-        cursor: pointer;
-        font-size: 1rem;
-        font-weight: 700;
-        transition:
-          transform 0.15s,
-          box-shadow 0.15s,
-          filter 0.15s;
-        -webkit-tap-highlight-color: transparent;
-        user-select: none;
-      }
-      .btn:active {
-        transform: scale(0.95);
-      }
-      .btn-primary {
-        background: linear-gradient(135deg, var(--accent1), #5b21b6);
-        color: #fff;
-        box-shadow: 0 4px 20px rgba(124, 58, 237, 0.5);
-        width: 100%;
-        font-size: 1.05rem;
-      }
-      .btn-primary:hover {
-        filter: brightness(1.12);
-      }
-      .btn-secondary {
-        background: var(--bg-panel);
-        color: var(--accent2);
-        border: 1px solid rgba(6, 182, 212, 0.4);
-        width: 100%;
-      }
-      .btn-secondary:hover {
-        background: rgba(6, 182, 212, 0.1);
-      }
+    #level-display {
+      background: linear-gradient(135deg,#6c63ff,#a855f7);
+      padding: 3px 12px;
+      border-radius: 999px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(12px, 4vw, 15px);
+    }
 
-      /* Answer option buttons */
-      .option-btn {
-        display: block;
-        width: 100%;
-        min-height: 54px;
-        padding: 12px 18px;
-        margin-bottom: 12px;
-        border-radius: var(--radius);
-        border: 2px solid rgba(255, 255, 255, 0.1);
-        background: var(--bg-panel);
-        color: var(--text);
-        font-size: clamp(0.9rem, 2.5vw, 1rem);
-        font-weight: 600;
-        text-align: left;
-        cursor: pointer;
-        transition:
-          border-color 0.2s,
-          background 0.2s,
-          transform 0.15s;
-        -webkit-tap-highlight-color: transparent;
-        line-height: 1.4;
-      }
-      .option-btn:hover {
-        border-color: var(--accent2);
-        background: rgba(6, 182, 212, 0.08);
-      }
-      .option-btn:active {
-        transform: scale(0.97);
-      }
-      .option-btn.correct {
-        border-color: var(--accent3);
-        background: rgba(16, 185, 129, 0.15);
-        animation: pulse-green 0.4s ease;
-      }
-      .option-btn.wrong {
-        border-color: var(--danger);
-        background: rgba(239, 68, 68, 0.12);
-        animation: shake 0.35s ease;
-      }
-      .option-btn:disabled {
-        cursor: default;
-      }
-      .option-btn .opt-letter {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.08);
-        font-size: 0.8rem;
-        margin-right: 10px;
-        flex-shrink: 0;
-        vertical-align: middle;
-      }
+    /* ── Canvas container — keeps aspect ratio ── */
+    #canvas-container {
+      position: relative;
+      width: 100%;
+      /* 480 × 520 native → ratio ≈ 0.923 */
+      padding-bottom: 108.33%; /* (520/480)*100 */
+      background: linear-gradient(180deg,#060c1a 0%,#0d1b33 60%,#0a1226 100%);
+      border-left:  1px solid #1e2d45;
+      border-right: 1px solid #1e2d45;
+      overflow: hidden;
+    }
 
-      @keyframes pulse-green {
-        0% {
-          box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
-        }
-        100% {
-          box-shadow: 0 0 0 14px rgba(16, 185, 129, 0);
-        }
-      }
-      @keyframes shake {
-        0%,
-        100% {
-          transform: translateX(0);
-        }
-        25% {
-          transform: translateX(-6px);
-        }
-        75% {
-          transform: translateX(6px);
-        }
-      }
+    #gameCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+      cursor: none;
+    }
 
-      /* ── HUD ──────────────────────────────────────────────── */
-      .hud {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: var(--bg-panel);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: var(--radius);
-        padding: 10px 18px;
-        margin-bottom: 16px;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-      .hud-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.9rem;
-        font-weight: 700;
-      }
-      .hud-label {
-        color: var(--text-dim);
-        font-weight: 400;
-        font-size: 0.78rem;
-      }
-      .hearts {
-        font-size: 1.1rem;
-        letter-spacing: 2px;
-      }
-      .score-val {
-        color: var(--accent2);
-        font-size: 1.1rem;
-      }
-      .level-pip {
-        display: flex;
-        gap: 5px;
-      }
-      .pip {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.15);
-        transition: background 0.3s;
-      }
-      .pip.done {
-        background: var(--accent3);
-      }
-      .pip.active {
-        background: var(--accent1);
-      }
+    /* Feedback overlay text */
+    #feedback {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%,-50%);
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(16px, 5vw, 22px);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.1s;
+      text-shadow: 0 0 12px currentColor;
+      white-space: nowrap;
+    }
 
-      /* ── Question card ───────────────────────────────────── */
-      #gameScreen .card {
-        padding: 22px 20px;
-      }
+    /* ── Overlay screens ── */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      background: rgba(6,12,26,0.92);
+      backdrop-filter: blur(6px);
+    }
+    .overlay h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(20px, 6vw, 28px);
+      text-align: center;
+      background: linear-gradient(90deg,#6c63ff,#a855f7,#ff4757);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .overlay p {
+      color: var(--text-dim);
+      font-size: clamp(11px, 3.2vw, 13px);
+      text-align: center;
+      max-width: min(320px, 80%);
+      line-height: 1.6;
+      padding: 0 12px;
+    }
+    .btn-primary {
+      padding: 12px 36px;
+      background: linear-gradient(135deg,#6c63ff,#a855f7);
+      border: none;
+      border-radius: 999px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(12px, 3.5vw, 14px);
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.12s;
+      box-shadow: 0 4px 20px rgba(108,99,255,0.4);
+      touch-action: manipulation;
+    }
+    .btn-primary:hover, .btn-primary:active {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(108,99,255,0.6);
+    }
 
-      .level-label {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: linear-gradient(135deg, var(--accent1), var(--accent2));
-        color: #fff;
-        font-size: 0.75rem;
-        font-weight: 700;
-        padding: 4px 14px;
-        border-radius: 50px;
-        margin-bottom: 14px;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-      }
-      .question-text {
-        font-size: clamp(1rem, 3vw, 1.18rem);
-        font-weight: 700;
-        line-height: 1.55;
-        margin-bottom: 20px;
-        color: var(--text);
-      }
-      .question-highlight {
-        display: inline-block;
-        background: rgba(124, 58, 237, 0.2);
-        border: 1px solid rgba(124, 58, 237, 0.4);
-        border-radius: 8px;
-        padding: 2px 10px;
-        font-family: "Courier New", monospace;
-        font-size: 1.05em;
-        color: #c4b5fd;
-      }
+    .legend {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
 
-      /* substance table for level 1 */
-      .substance-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-bottom: 20px;
-        justify-content: center;
-      }
-      .substance-chip {
-        background: var(--bg-panel);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 10px;
-        padding: 10px 16px;
-        font-family: "Courier New", monospace;
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--accent2);
-        text-align: center;
-        min-width: 90px;
-        position: relative;
-      }
-      .substance-chip .chip-label {
-        font-family: "Segoe UI", sans-serif;
-        font-size: 0.7rem;
-        color: var(--text-dim);
-        font-weight: 400;
-        margin-top: 4px;
-        display: block;
-      }
+    .big-score {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(36px, 10vw, 48px);
+      background: linear-gradient(90deg,#ffd700,#ffa502);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
 
-      /* pH scale visual */
-      .ph-scale {
-        height: 18px;
-        border-radius: 50px;
-        background: linear-gradient(
-          to right,
-          #ef4444,
-          #f97316,
-          #facc15,
-          #4ade80,
-          #06b6d4,
-          #6366f1,
-          #7c3aed
-        );
-        position: relative;
-        margin-bottom: 10px;
-      }
-      .ph-marker {
-        position: absolute;
-        top: -4px;
-        transform: translateX(-50%);
-        width: 26px;
-        height: 26px;
-        border-radius: 50%;
-        border: 3px solid #fff;
-        box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-        background: #fff;
-        transition: left 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-      }
-      .ph-labels {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.7rem;
-        color: var(--text-dim);
-        margin-bottom: 16px;
-      }
+    /* ── Controls bar ── */
+    #controls-bar {
+      width: 100%;
+      background: var(--bg-panel);
+      border: 1px solid #1e2d45;
+      border-top: none;
+      border-radius: 0 0 14px 14px;
+      padding: 10px 12px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
 
-      /* ── Feedback toast ──────────────────────────────────── */
-      #feedback {
-        text-align: center;
-        font-size: 1rem;
-        font-weight: 700;
-        min-height: 28px;
-        margin: 10px 0 4px;
-        transition: opacity 0.3s;
-      }
-      #feedback.correct {
-        color: var(--accent3);
-      }
-      #feedback.wrong {
-        color: var(--danger);
-      }
+    /* Row: ← | A S D | → */
+    .controls-main-row {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+      width: 100%;
+      justify-content: center;
+    }
 
-      /* ── Progress bar ────────────────────────────────────── */
-      .progress-wrap {
-        background: rgba(255, 255, 255, 0.06);
-        border-radius: 50px;
-        height: 6px;
-        margin-bottom: 16px;
-        overflow: hidden;
-      }
-      .progress-bar {
-        height: 100%;
-        border-radius: 50px;
-        background: linear-gradient(90deg, var(--accent1), var(--accent2));
-        transition: width 0.5s ease;
-      }
+    /* Arrow buttons */
+    .arrow-btn {
+      flex: 0 0 52px;
+      min-height: 60px;
+      background: #1a2540;
+      border: 2px solid #2a3f6a;
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      touch-action: none;   /* handle our own touch */
+      user-select: none;
+      transition: background 0.1s, transform 0.08s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .arrow-btn:active { background: #253560; transform: scale(0.94); }
 
-      /* ── Victory / Game Over ─────────────────────────────── */
-      #victoryScreen,
-      #gameOverScreen {
-        text-align: center;
-      }
+    /* Type buttons */
+    .type-btns {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+      justify-content: center;
+    }
 
-      .end-icon {
-        font-size: 80px;
-        margin-bottom: 12px;
-        display: block;
-        animation: bounce 1s infinite alternate;
-      }
-      @keyframes bounce {
-        from {
-          transform: translateY(0);
-        }
-        to {
-          transform: translateY(-12px);
-        }
-      }
+    .key-btn {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 4px 6px;
+      border-radius: 10px;
+      border: 2px solid transparent;
+      background: #1a2540;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.15s;
+      font-family: 'Inter', sans-serif;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .key-btn .kbd {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(11px, 3.5vw, 14px);
+      font-weight: 700;
+      color: #fff;
+    }
+    .key-btn .label {
+      font-size: clamp(8px, 2.5vw, 10px);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .key-btn[data-type="acid"]    { border-color: var(--acid-color); }
+    .key-btn[data-type="base"]    { border-color: var(--base-color); }
+    .key-btn[data-type="neutral"] { border-color: var(--neutral-color); }
+    .key-btn.active[data-type="acid"]    { background: #3d0f16; box-shadow: 0 0 14px var(--acid-color);    transform: scale(1.07); }
+    .key-btn.active[data-type="base"]    { background: #0d1f3e; box-shadow: 0 0 14px var(--base-color);    transform: scale(1.07); }
+    .key-btn.active[data-type="neutral"] { background: #0d2a1a; box-shadow: 0 0 14px var(--neutral-color); transform: scale(1.07); }
 
-      .end-title {
-        font-size: clamp(1.6rem, 5vw, 2.4rem);
-        font-weight: 800;
-        margin-bottom: 8px;
-      }
-      .end-score {
-        font-size: 3rem;
-        font-weight: 900;
-        background: linear-gradient(135deg, var(--accent1), var(--accent2));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin: 10px 0 4px;
-      }
-      .end-msg {
-        color: var(--text-dim);
-        margin-bottom: 24px;
-        font-size: 0.95rem;
-      }
+    .move-hint {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
 
-      .stats-row {
-        display: flex;
-        justify-content: center;
-        gap: 20px;
-        flex-wrap: wrap;
-        margin-bottom: 28px;
-      }
-      .stat-box {
-        background: var(--bg-panel);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        padding: 14px 22px;
-        min-width: 110px;
-      }
-      .stat-box .sv {
-        font-size: 1.6rem;
-        font-weight: 800;
-        color: var(--accent2);
-      }
-      .stat-box .sl {
-        font-size: 0.75rem;
-        color: var(--text-dim);
-        margin-top: 2px;
-      }
+<canvas id="stars"></canvas>
 
-      /* ── How-to-play modal ────────────────────────────────── */
-      .modal-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 100;
-        background: rgba(0, 0, 0, 0.7);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 16px;
-        animation: fadeIn 0.25s ease;
-      }
-      .modal-overlay.hidden {
-        display: none;
-      }
-      .modal-box {
-        background: var(--bg-card);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: var(--radius);
-        padding: 28px 24px;
-        max-width: 460px;
-        width: 100%;
-        box-shadow: var(--shadow);
-        max-height: 90vh;
-        overflow-y: auto;
-      }
-      .modal-title {
-        font-size: 1.3rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, var(--accent1), var(--accent2));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 16px;
-      }
-      .how-step {
-        display: flex;
-        gap: 12px;
-        margin-bottom: 14px;
-        align-items: flex-start;
-      }
-      .how-num {
-        background: linear-gradient(135deg, var(--accent1), var(--accent2));
-        color: #fff;
-        font-weight: 800;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.85rem;
-        flex-shrink: 0;
-      }
-      .how-text {
-        font-size: 0.9rem;
-        line-height: 1.5;
-        color: var(--text-dim);
-      }
-      .how-text strong {
-        color: var(--text);
-      }
-
-      /* ── Notification snack ───────────────────────────────── */
-      #snack {
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--bg-panel);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 50px;
-        padding: 10px 22px;
-        font-size: 0.9rem;
-        font-weight: 600;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-        z-index: 200;
-        opacity: 0;
-        transition: opacity 0.3s;
-        pointer-events: none;
-        white-space: nowrap;
-      }
-      #snack.show {
-        opacity: 1;
-      }
-
-      /* ── Level transition overlay ─────────────────────────── */
-      #levelTransition {
-        position: fixed;
-        inset: 0;
-        z-index: 150;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background: rgba(13, 14, 26, 0.95);
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.4s;
-      }
-      #levelTransition.show {
-        opacity: 1;
-        pointer-events: all;
-      }
-      .lt-badge {
-        font-size: 3rem;
-        margin-bottom: 8px;
-      }
-      .lt-title {
-        font-size: 1.8rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, var(--accent1), var(--accent2));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        text-align: center;
-        padding: 0 20px;
-      }
-      .lt-sub {
-        color: var(--text-dim);
-        margin-top: 8px;
-        font-size: 0.95rem;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="app">
-      <!-- ══════════════ START SCREEN ══════════════ -->
-      <div id="startScreen" class="screen active">
-        <div class="card" style="text-align: center">
-          <div class="logo-icon">⚗️</div>
-          <h1 class="game-title">ChemLab Quest</h1>
-          <p class="game-subtitle">Acid–Base Adventure · Grade 11 Chemistry</p>
-
-          <div class="mission-badges">
-            <span class="badge">🧫 Mission 1: Classification</span>
-            <span class="badge">🔬 Mission 2: pH Scale</span>
-            <span class="badge">⚡ Mission 3: Ionization</span>
-            <span class="badge">🧪 Mission 4: Neutralization</span>
-            <span class="badge">🧮 Mission 5: pH Calculation</span>
-          </div>
-
-          <button class="btn btn-primary" onclick="startGame()" id="startBtn">
-            🚀 Start Mission
-          </button>
-          <br /><br />
-          <button class="btn btn-secondary" onclick="showModal()">
-            📖 How to Play
-          </button>
-        </div>
-      </div>
-
-      <!-- ══════════════ GAME SCREEN ══════════════ -->
-      <div id="gameScreen" class="screen">
-        <!-- HUD -->
-        <div class="hud">
-          <div class="hud-item">
-            <span class="hud-label">SCORE</span>
-            <span class="score-val" id="scoreDisplay">0</span>
-          </div>
-          <div
-            class="hud-item"
-            style="flex-direction: column; align-items: center; gap: 4px"
-          >
-            <div class="level-pip" id="levelPips"></div>
-            <span class="hud-label" id="levelLabel">Level 1</span>
-          </div>
-          <div class="hud-item">
-            <span class="hud-label">LIVES</span>
-            <span class="hearts" id="heartsDisplay">❤️❤️❤️</span>
-          </div>
-        </div>
-
-        <!-- Progress -->
-        <div class="progress-wrap">
-          <div class="progress-bar" id="progressBar" style="width: 0%"></div>
-        </div>
-
-        <!-- Question card -->
-        <div class="card" id="questionCard">
-          <div class="level-label" id="levelTag">⚗️ Mission 1</div>
-          <div class="question-text" id="questionText"></div>
-          <div id="visualArea"></div>
-          <div id="optionsArea"></div>
-          <div id="feedback"></div>
-        </div>
-      </div>
-
-      <!-- ══════════════ VICTORY SCREEN ══════════════ -->
-      <div id="victoryScreen" class="screen">
-        <div class="card">
-          <span class="end-icon">🏆</span>
-          <h2 class="end-title" style="color: var(--accent3)">
-            Mission Complete!
-          </h2>
-          <p class="end-msg">You mastered all 5 Acid–Base missions!</p>
-          <div class="end-score" id="victoryScore">0</div>
-          <p class="end-msg">Total Score</p>
-          <div class="stats-row">
-            <div class="stat-box">
-              <div class="sv" id="vCorrect">0</div>
-              <div class="sl">✅ Correct</div>
-            </div>
-            <div class="stat-box">
-              <div class="sv" id="vWrong">0</div>
-              <div class="sl">❌ Wrong</div>
-            </div>
-            <div class="stat-box">
-              <div class="sv" id="vLives">0</div>
-              <div class="sl">❤️ Lives Left</div>
-            </div>
-          </div>
-          <button class="btn btn-primary" onclick="restartGame()">
-            🔄 Play Again
-          </button>
-        </div>
-      </div>
-
-      <!-- ══════════════ GAME OVER SCREEN ══════════════ -->
-      <div id="gameOverScreen" class="screen">
-        <div class="card">
-          <span class="end-icon">💀</span>
-          <h2 class="end-title" style="color: var(--danger)">Game Over!</h2>
-          <p class="end-msg">
-            You ran out of lives. Keep studying and try again!
-          </p>
-          <div class="end-score" id="gameOverScore">0</div>
-          <p class="end-msg">Final Score</p>
-          <div class="stats-row">
-            <div class="stat-box">
-              <div class="sv" id="goCorrect">0</div>
-              <div class="sl">✅ Correct</div>
-            </div>
-            <div class="stat-box">
-              <div class="sv" id="goWrong">0</div>
-              <div class="sl">❌ Wrong</div>
-            </div>
-            <div class="stat-box">
-              <div class="sv" id="goLevel">0</div>
-              <div class="sl">📍 Level</div>
-            </div>
-          </div>
-          <button class="btn btn-primary" onclick="restartGame()">
-            🔄 Try Again
-          </button>
-        </div>
-      </div>
+<div id="wrapper">
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-item">
+      <span class="hud-label">Score</span>
+      <span class="hud-value" id="score-display">0</span>
     </div>
-    <!-- /#app -->
+    <div class="hud-item">
+      <span class="hud-label">Level</span>
+      <span id="level-display">1</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Lives</span>
+      <div class="hearts" id="hearts-display">❤️❤️❤️</div>
+    </div>
+  </div>
 
-    <!-- ══════════════ HOW TO PLAY MODAL ══════════════ -->
-    <div class="modal-overlay hidden" id="howModal" onclick="hideModal(event)">
-      <div class="modal-box" onclick="event.stopPropagation()">
-        <div class="modal-title">📖 How to Play</div>
-        <div class="how-step">
-          <div class="how-num">1</div>
-          <div class="how-text">
-            <strong>Read each question</strong> carefully. You are a young
-            scientist completing chemistry missions!
-          </div>
-        </div>
-        <div class="how-step">
-          <div class="how-num">2</div>
-          <div class="how-text">
-            <strong>Pick the correct answer</strong> from the options. Tap or
-            click to submit.
-          </div>
-        </div>
-        <div class="how-step">
-          <div class="how-num">3</div>
-          <div class="how-text">
-            <strong>+10 points</strong> for correct answers ·
-            <strong>–5 points</strong> for wrong answers.
-          </div>
-        </div>
-        <div class="how-step">
-          <div class="how-num">4</div>
-          <div class="how-text">
-            You have <strong>3 lives ❤️</strong>. Lose a life for every wrong
-            answer. Game over when lives reach 0.
-          </div>
-        </div>
-        <div class="how-step">
-          <div class="how-num">5</div>
-          <div class="how-text">
-            <strong>5 levels</strong> await you: Classification → pH →
-            Ionization → Neutralization → pH Calculation.
-          </div>
-        </div>
-        <br />
-        <button class="btn btn-primary" onclick="hideModal()">
-          Got it! 🚀
+  <!-- Canvas -->
+  <div id="canvas-container">
+    <canvas id="gameCanvas" width="480" height="520"></canvas>
+    <div id="feedback"></div>
+
+    <!-- Start Screen -->
+    <div class="overlay" id="startScreen">
+      <h1>⚗️ ChemDrop<br/>Acid-Base Lab</h1>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--acid-color)"></div> Acid → A</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--base-color)"></div> Base → S</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--neutral-color)"></div> Neutral → D</div>
+      </div>
+      <p>Formulas fall from the sky. Pick the right basket type with tap the buttons below then move with <b>← →</b> or the arrows. Good luck, chemist!</p>
+      <button class="btn-primary" id="startBtn">Start Game</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div class="overlay" id="gameOverScreen" style="display:none">
+      <h1>Game Over</h1>
+      <p>Nice effort, chemist!</p>
+      <div class="big-score" id="finalScore">0</div>
+      <p style="margin-top:-8px;font-size:12px;">Final Score</p>
+      <button class="btn-primary" id="restartBtn">Play Again</button>
+    </div>
+  </div>
+
+  <!-- Controls bar -->
+  <div id="controls-bar">
+    <div class="controls-main-row">
+      <!-- Left arrow -->
+      <button class="arrow-btn" id="arrowLeft" aria-label="Move Left">&#8592;</button>
+
+      <!-- Type buttons -->
+      <div class="type-btns">
+        <button class="key-btn active" data-type="acid" id="btnA">
+          <span class="kbd">A</span>
+          <span class="label" style="color:var(--acid-color)">Acid</span>
+        </button>
+        <button class="key-btn" data-type="base" id="btnS">
+          <span class="kbd">S</span>
+          <span class="label" style="color:var(--base-color)">Base</span>
+        </button>
+        <button class="key-btn" data-type="neutral" id="btnD">
+          <span class="kbd">D</span>
+          <span class="label" style="color:var(--neutral-color)">Neutral</span>
         </button>
       </div>
+
+      <!-- Right arrow -->
+      <button class="arrow-btn" id="arrowRight" aria-label="Move Right">&#8594;</button>
     </div>
+    <div class="move-hint">Tap &amp; hold ← → to move &nbsp;|&nbsp; Drag canvas to slide</div>
+  </div>
+</div>
 
-    <!-- Level transition overlay -->
-    <div id="levelTransition">
-      <div class="lt-badge" id="ltBadge">⚗️</div>
-      <div class="lt-title" id="ltTitle">Level 2 Unlocked!</div>
-      <div class="lt-sub" id="ltSub">pH Identification</div>
-    </div>
+<script>
+// ─────────────────────────────────────────────
+// Starfield (background animation)
+// ─────────────────────────────────────────────
+(function(){
+  const c  = document.getElementById('stars');
+  const cx = c.getContext('2d');
+  function resize(){ c.width = window.innerWidth; c.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+  const stars = Array.from({length:160},()=>({
+    x: Math.random()*window.innerWidth,
+    y: Math.random()*window.innerHeight,
+    r: Math.random()*1.4+0.3,
+    a: Math.random(),
+    da: (Math.random()-0.5)*0.006
+  }));
+  (function draw(){
+    cx.clearRect(0,0,c.width,c.height);
+    stars.forEach(s=>{
+      s.a = Math.max(0.1,Math.min(1,s.a+s.da));
+      if(s.a<=0.1||s.a>=1) s.da*=-1;
+      cx.beginPath();
+      cx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      cx.fillStyle=`rgba(255,255,255,${s.a})`;
+      cx.fill();
+    });
+    requestAnimationFrame(draw);
+  })();
+})();
 
-    <!-- Snackbar -->
-    <div id="snack"></div>
+// ─────────────────────────────────────────────
+// Chemistry Data
+// ─────────────────────────────────────────────
+const CHEMICALS = {
+  acid:    ['HCl','H₂SO₄','HNO₃','CH₃COOH','HF','H₂CO₃'],
+  base:    ['NaOH','KOH','NH₃','Ba(OH)₂','Ca(OH)₂'],
+  neutral: ['NaCl','H₂O','KNO₃','Na₂SO₄']
+};
+const TYPE_COLOR = { acid:'#ff4757', base:'#1e90ff', neutral:'#2ed573' };
+const TYPE_GLOW  = { acid:'#ff6b81', base:'#70b8ff', neutral:'#7bed9f' };
 
-    <script>
-      /* ═══════════════════════════════════════════════════════════
-   QUESTION DATA
-═══════════════════════════════════════════════════════════ */
-      const LEVELS = [
-        /* ─── Level 1: Acid–Base Classification ─── */
-        {
-          title: "Mission 1",
-          name: "Acid–Base Classification",
-          icon: "🧫",
-          questions: [
-            {
-              text: "HCl is commonly known as hydrochloric acid. How would you classify HCl?",
-              visual: "chip",
-              chipData: [{ formula: "HCl", name: "Hydrochloric Acid" }],
-              options: ["Acid", "Base", "Neutral Salt"],
-              correct: 0,
-              explanation:
-                "HCl donates H⁺ ions in water → it is a strong ACID.",
-            },
-            {
-              text: "Sodium hydroxide (NaOH) is used in soap making. What is its classification?",
-              visual: "chip",
-              chipData: [{ formula: "NaOH", name: "Sodium Hydroxide" }],
-              options: ["Acid", "Strong Base", "Neutral"],
-              correct: 1,
-              explanation:
-                "NaOH releases OH⁻ ions in water → it is a strong BASE.",
-            },
-            {
-              text: "Ammonia (NH₃) has a pungent smell and is used in cleaning products. What is its nature?",
-              visual: "chip",
-              chipData: [{ formula: "NH₃", name: "Ammonia" }],
-              options: ["Acid", "Weak Base", "Neutral"],
-              correct: 1,
-              explanation:
-                "NH₃ accepts H⁺ from water forming NH₄⁺ and OH⁻ → it is a weak BASE.",
-            },
-            {
-              text: "Acetic acid (CH₃COOH) gives vinegar its sour taste. How is it classified?",
-              visual: "chip",
-              chipData: [{ formula: "CH₃COOH", name: "Acetic Acid" }],
-              options: ["Weak Acid", "Strong Acid", "Base"],
-              correct: 0,
-              explanation:
-                "CH₃COOH partially ionizes, releasing H⁺ → it is a weak ACID.",
-            },
-            {
-              text: "Table salt (NaCl) dissolves in water. What is its acid–base classification?",
-              visual: "chip",
-              chipData: [{ formula: "NaCl", name: "Sodium Chloride" }],
-              options: ["Acid", "Base", "Neutral Salt"],
-              correct: 2,
-              explanation:
-                "NaCl is the salt of a strong acid and strong base → NEUTRAL (pH ≈ 7).",
-            },
-          ],
-        },
+// ─────────────────────────────────────────────
+// Canvas & logical dimensions (kept fixed for easy math)
+// ─────────────────────────────────────────────
+const canvas = document.getElementById('gameCanvas');
+const ctx    = canvas.getContext('2d');
+const W = 480, H = 520;   // logical size — CSS scales the rest
 
-        /* ─── Level 2: pH Identification ─── */
-        {
-          title: "Mission 2",
-          name: "pH Identification",
-          icon: "🔬",
-          questions: [
-            {
-              text: "A solution has a pH of 2. What is its classification?",
-              visual: "ph",
-              phValue: 2,
-              options: ["Strong Acid", "Base", "Neutral"],
-              correct: 0,
-              explanation:
-                "pH 2 is far below 7 → strong ACID (very low pH = high [H⁺]).",
-            },
-            {
-              text: "Pure water at 25°C has a pH of exactly 7. What does this mean?",
-              visual: "ph",
-              phValue: 7,
-              options: ["Acidic", "Neutral", "Basic"],
-              correct: 1,
-              explanation: "pH 7 = equal [H⁺] and [OH⁻] → NEUTRAL solution.",
-            },
-            {
-              text: "Bleach has a pH of 11. What is its classification?",
-              visual: "ph",
-              phValue: 11,
-              options: ["Acid", "Neutral", "Base"],
-              correct: 2,
-              explanation:
-                "pH 11 is well above 7 → BASE (high pH = high [OH⁻]).",
-            },
-            {
-              text: "Lemon juice has a pH of about 2–3. Orange juice has pH 3–4. Which is MORE acidic?",
-              visual: "none",
-              options: [
-                "Lemon juice (pH 2)",
-                "Orange juice (pH 4)",
-                "They are equally acidic",
-              ],
-              correct: 0,
-              explanation:
-                "Lower pH = more acidic. Lemon juice (pH 2) is more acidic than orange juice (pH 4).",
-            },
-            {
-              text: "A solution has [H⁺] = 10⁻⁹ mol/L. What is its pH, and is it acid, base, or neutral?",
-              visual: "none",
-              options: ["pH 9 → Basic", "pH 5 → Acidic", "pH 7 → Neutral"],
-              correct: 0,
-              explanation:
-                "pH = –log[H⁺] = –log(10⁻⁹) = 9. pH 9 > 7 → the solution is BASIC.",
-            },
-          ],
-        },
+// ─────────────────────────────────────────────
+// Game State
+// ─────────────────────────────────────────────
+let state = 'start';
+let score, lives, level, drops, basket, keys,
+    lastDrop, baseSpeed, spawnInterval, flashTimer;
 
-        /* ─── Level 3: Ionization ─── */
-        {
-          title: "Mission 3",
-          name: "Ionization",
-          icon: "⚡",
-          questions: [
-            {
-              text: "Which substance produces H⁺ ions when dissolved in water?",
-              visual: "none",
-              options: [
-                "HNO₃ (Nitric acid)",
-                "Ca(OH)₂ (Calcium hydroxide)",
-                "KCl (Potassium chloride)",
-              ],
-              correct: 0,
-              explanation:
-                "HNO₃ → H⁺ + NO₃⁻ in water. Acids produce H⁺ (proton donors).",
-            },
-            {
-              text: "Which of the following is the correct ionization equation for HCl in water?",
-              visual: "none",
-              options: ["HCl → H⁺ + Cl⁻", "HCl → OH⁻ + ClH⁺", "HCl → H₂ + Cl₂"],
-              correct: 0,
-              explanation:
-                "HCl fully ionizes: HCl → H⁺ + Cl⁻. This shows it is a strong acid.",
-            },
-            {
-              text: "A Brønsted–Lowry acid is defined as a substance that:",
-              visual: "none",
-              options: [
-                "Donates a proton (H⁺) to another substance",
-                "Accepts a proton (H⁺) from another substance",
-                "Produces OH⁻ ions in water",
-              ],
-              correct: 0,
-              explanation:
-                "Brønsted–Lowry acid = proton DONOR. Bases are proton acceptors.",
-            },
-            {
-              text: "Ammonia (NH₃) reacts with water: NH₃ + H₂O ⇌ NH₄⁺ + OH⁻. What role does NH₃ play?",
-              visual: "none",
-              options: [
-                "Brønsted–Lowry base (proton acceptor)",
-                "Brønsted–Lowry acid (proton donor)",
-                "Neutral spectator",
-              ],
-              correct: 0,
-              explanation:
-                "NH₃ accepts H⁺ from water to form NH₄⁺ → it acts as a BASE (proton acceptor).",
-            },
-            {
-              text: "Which solution would conduct electricity MOST effectively due to complete ionization?",
-              visual: "none",
-              options: [
-                "HCl (aq) — strong acid, fully ionized",
-                "CH₃COOH (aq) — weak acid, partially ionized",
-                "Sugar (aq) — non-electrolyte",
-              ],
-              correct: 0,
-              explanation:
-                "Strong electrolytes (like HCl) fully ionize → produce more ions → higher conductivity.",
-            },
-          ],
-        },
+const BASKET_W = 110;
+const BASKET_H = 44;
+const BASKET_Y = H - 62;
 
-        /* ─── Level 4: Neutralization ─── */
-        {
-          title: "Mission 4",
-          name: "Neutralization",
-          icon: "🧪",
-          questions: [
-            {
-              text: "What are the products of the reaction: HCl + NaOH → ?",
-              visual: "none",
-              options: [
-                "NaCl + H₂O (salt + water)",
-                "NaHCO₃ + H₂",
-                "Na⁺ + HClO₄",
-              ],
-              correct: 0,
-              explanation:
-                "Acid + Base → Salt + Water. HCl + NaOH → NaCl + H₂O",
-            },
-            {
-              text: "In the reaction H₂SO₄ + 2KOH → K₂SO₄ + 2H₂O, what type of reaction is this?",
-              visual: "none",
-              options: ["Neutralization", "Combustion", "Decomposition"],
-              correct: 0,
-              explanation:
-                "Acid (H₂SO₄) reacts with base (KOH) → salt + water. This is NEUTRALIZATION.",
-            },
-            {
-              text: "A student mixes equal moles of HCl and NaOH in water. What is the approximate pH of the resulting solution?",
-              visual: "none",
-              options: [
-                "pH ≈ 7 (Neutral)",
-                "pH ≈ 2 (Acidic)",
-                "pH ≈ 12 (Basic)",
-              ],
-              correct: 0,
-              explanation:
-                "Equal moles of strong acid + strong base → neutral solution, pH ≈ 7.",
-            },
-            {
-              text: "What product is formed when acetic acid (CH₃COOH) reacts with NaOH?",
-              visual: "none",
-              options: [
-                "CH₃COONa + H₂O (sodium acetate + water)",
-                "CH₄ + NaOOH",
-                "NaCl + CO₂",
-              ],
-              correct: 0,
-              explanation: "CH₃COOH + NaOH → CH₃COONa (sodium acetate) + H₂O.",
-            },
-            {
-              text: "During a titration, the equivalence point is:",
-              visual: "none",
-              options: [
-                "The point where moles of acid = moles of base",
-                "When pH first drops below 7",
-                "When the indicator first turns pink",
-              ],
-              correct: 0,
-              explanation:
-                "At equivalence point: moles of H⁺ = moles of OH⁻. Reaction is complete.",
-            },
-          ],
-        },
+function initGame(){
+  score = 0; lives = 3; level = 1; drops = []; keys = {};
+  lastDrop = 0; flashTimer = 0;
+  // ── SLOWER initial speeds ──
+  baseSpeed     = 1.1;   // was 1.8
+  spawnInterval = 2200;  // was 1800
+  basket = { x: W/2 - BASKET_W/2, type:'acid', speed:6, shake:false };
+  updateHUD();
+}
 
-        /* ─── Level 5: Simple pH Calculation ─── */
-        {
-          title: "Mission 5",
-          name: "pH Calculation",
-          icon: "🧮",
-          questions: [
-            {
-              text: "A solution of 0.01 M HCl is prepared. Since HCl is a strong acid, calculate the pH.",
-              visual: "none",
-              options: ["pH = 2", "pH = 7", "pH = 12"],
-              correct: 0,
-              explanation: "[H⁺] = 0.01 = 10⁻² mol/L → pH = –log(10⁻²) = 2",
-            },
-            {
-              text: "Calculate the pH of a 0.001 M HNO₃ solution (strong acid, fully ionized).",
-              visual: "none",
-              options: ["pH = 3", "pH = 1", "pH = 11"],
-              correct: 0,
-              explanation: "[H⁺] = 0.001 = 10⁻³ mol/L → pH = –log(10⁻³) = 3",
-            },
-            {
-              text: "A NaOH solution has [OH⁻] = 0.1 mol/L. Calculate the pOH, then find the pH.",
-              visual: "none",
-              options: ["pH = 13 (pOH = 1)", "pH = 1 (pOH = 13)", "pH = 7"],
-              correct: 0,
-              explanation:
-                "pOH = –log(0.1) = 1 → pH = 14 – pOH = 14 – 1 = 13 (strong base).",
-            },
-            {
-              text: "If [H⁺] = 10⁻⁵ mol/L in a solution at 25°C, what is the pH?",
-              visual: "none",
-              options: [
-                "pH = 5 (Acidic)",
-                "pH = 9 (Basic)",
-                "pH = 7 (Neutral)",
-              ],
-              correct: 0,
-              explanation:
-                "pH = –log(10⁻⁵) = 5. Since 5 < 7, the solution is ACIDIC.",
-            },
-            {
-              text: "A strong base solution has pH = 11. What is the [OH⁻] concentration?",
-              visual: "none",
-              options: [
-                "[OH⁻] = 10⁻³ mol/L",
-                "[OH⁻] = 10⁻¹¹ mol/L",
-                "[OH⁻] = 10⁻⁷ mol/L",
-              ],
-              correct: 0,
-              explanation: "pOH = 14 – 11 = 3 → [OH⁻] = 10⁻³ mol/L",
-            },
-          ],
-        },
-      ];
+function updateHUD(){
+  document.getElementById('score-display').textContent = score;
+  const h = document.getElementById('hearts-display');
+  h.textContent = '❤️'.repeat(Math.max(0,lives));
+  // recalculate level FIRST, then update speed
+  const newLevel = Math.floor(score/50)+1;
+  if(newLevel !== level){
+    level = newLevel;
+    document.getElementById('level-display').textContent = level;
+  }
+  // ── GENTLER speed ramp: +0.18 per level (was 0.35) ──
+  baseSpeed     = 1.1 + (level-1)*0.18;
+  // ── Interval floor raised to 1000ms (was 700), step smaller ──
+  spawnInterval = Math.max(1000, 2200 - (level-1)*100);
+}
 
-      /* ═══════════════════════════════════════════════════════════
-   GAME STATE
-═══════════════════════════════════════════════════════════ */
-      let score = 0;
-      let lives = 3;
-      let currentLvl = 0; // 0-indexed level
-      let currentQ = 0; // question index within level
-      let answered = false;
-      let correctCount = 0;
-      let wrongCount = 0;
-      let snackTimer = null;
-      let transTimer = null;
+// ─────────────────────────────────────────────
+// Scale helper — maps a CSS-space touch X to logical canvas X
+// ─────────────────────────────────────────────
+function toLogicalX(clientX){
+  const rect  = canvas.getBoundingClientRect();
+  return (clientX - rect.left) * (W / rect.width);
+}
 
-      /* ═══════════════════════════════════════════════════════════
-   CORE FUNCTIONS
-═══════════════════════════════════════════════════════════ */
-      function startGame() {
-        score = 0;
-        lives = 3;
-        currentLvl = 0;
-        currentQ = 0;
-        correctCount = 0;
-        wrongCount = 0;
-        showScreen("gameScreen");
-        buildLevelPips();
-        showQuestion();
-      }
+// ─────────────────────────────────────────────
+// Keyboard Input
+// ─────────────────────────────────────────────
+document.addEventListener('keydown', e=>{
+  keys[e.key] = true;
+  if(state !== 'playing') return;
+  if(e.key==='a'||e.key==='A') setType('acid');
+  if(e.key==='s'||e.key==='S') setType('base');
+  if(e.key==='d'||e.key==='D') setType('neutral');
+  if(['ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+});
+document.addEventListener('keyup', e=>{ keys[e.key]=false; });
 
-      function restartGame() {
-        showScreen("startScreen");
-      }
+// ─────────────────────────────────────────────
+// On-screen ← → buttons (hold-to-move via interval)
+// ─────────────────────────────────────────────
+function holdKey(virtualKey, el){
+  let tid = null;
+  function start(e){ e.preventDefault(); keys[virtualKey]=true; }
+  function stop(e){  e.preventDefault(); keys[virtualKey]=false; }
+  el.addEventListener('mousedown', start);
+  el.addEventListener('mouseup',   stop);
+  el.addEventListener('mouseleave',stop);
+  el.addEventListener('touchstart',start,{passive:false});
+  el.addEventListener('touchend',  stop, {passive:false});
+  el.addEventListener('touchcancel',stop,{passive:false});
+}
+holdKey('ArrowLeft',  document.getElementById('arrowLeft'));
+holdKey('ArrowRight', document.getElementById('arrowRight'));
 
-      function showScreen(id) {
-        document
-          .querySelectorAll(".screen")
-          .forEach((s) => s.classList.remove("active"));
-        document.getElementById(id).classList.add("active");
-      }
+// ─────────────────────────────────────────────
+// Canvas touch — drag basket horizontally
+// ─────────────────────────────────────────────
+let touchDragX = null;
 
-      function buildLevelPips() {
-        const container = document.getElementById("levelPips");
-        container.innerHTML = "";
-        LEVELS.forEach((_, i) => {
-          const pip = document.createElement("div");
-          pip.className = "pip";
-          pip.id = "pip" + i;
-          container.appendChild(pip);
-        });
-        updatePips();
-      }
+canvas.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  if(state !== 'playing') return;
+  touchDragX = toLogicalX(e.touches[0].clientX);
+}, {passive:false});
 
-      function updatePips() {
-        LEVELS.forEach((_, i) => {
-          const pip = document.getElementById("pip" + i);
-          if (!pip) return;
-          pip.className = "pip";
-          if (i < currentLvl) pip.classList.add("done");
-          else if (i === currentLvl) pip.classList.add("active");
-        });
-      }
+canvas.addEventListener('touchmove', e=>{
+  e.preventDefault();
+  if(state !== 'playing' || touchDragX === null) return;
+  const newX = toLogicalX(e.touches[0].clientX);
+  const dx   = newX - touchDragX;
+  touchDragX = newX;
+  basket.x = Math.max(0, Math.min(W - BASKET_W, basket.x + dx));
+}, {passive:false});
 
-      function updateHUD() {
-        document.getElementById("scoreDisplay").textContent = score;
-        document.getElementById("levelLabel").textContent =
-          "Level " + (currentLvl + 1);
+canvas.addEventListener('touchend',   e=>{ e.preventDefault(); touchDragX = null; },{passive:false});
+canvas.addEventListener('touchcancel',e=>{ e.preventDefault(); touchDragX = null; },{passive:false});
 
-        const h = [];
-        for (let i = 0; i < lives; i++) h.push("❤️");
-        for (let i = lives; i < 3; i++) h.push("🖤");
-        document.getElementById("heartsDisplay").textContent = h.join("");
+// ─────────────────────────────────────────────
+// Type-switch buttons (A / S / D)
+// ─────────────────────────────────────────────
+document.querySelectorAll('.key-btn').forEach(btn=>{
+  // Both click (desktop) and touchstart (mobile, no 300ms delay)
+  function activate(e){
+    e.preventDefault();
+    if(state==='playing') setType(btn.dataset.type);
+  }
+  btn.addEventListener('click',      activate);
+  btn.addEventListener('touchstart', activate, {passive:false});
+});
 
-        // progress within current level
-        const total = LEVELS[currentLvl].questions.length;
-        const pct = (currentQ / total) * 100;
-        document.getElementById("progressBar").style.width = pct + "%";
-      }
+function setType(t){
+  if(!basket) return;
+  basket.type = t;
+  document.querySelectorAll('.key-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.type===t);
+  });
+}
 
-      function showQuestion() {
-        answered = false;
+// ─────────────────────────────────────────────
+// Screen transitions
+// ─────────────────────────────────────────────
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('restartBtn').addEventListener('click', startGame);
+
+function startGame(){
+  document.getElementById('startScreen').style.display  = 'none';
+  document.getElementById('gameOverScreen').style.display = 'none';
+  initGame();
+  state = 'playing';
+}
+
+// ─────────────────────────────────────────────
+// Drops
+// ─────────────────────────────────────────────
+function spawnDrop(ts){
+  const typePile = ['acid','acid','base','base','neutral'];
+  const type     = typePile[Math.floor(Math.random()*typePile.length)];
+  const formula  = CHEMICALS[type][Math.floor(Math.random()*CHEMICALS[type].length)];
+  drops.push({
+    x: 34 + Math.random()*(W-68),
+    y: -32,
+    formula, type,
+    speed: baseSpeed + Math.random()*0.4,  // tighter speed variance (was 0.6)
+    angle: (Math.random()-0.5)*0.25,
+    wobble: 0,
+    bobAmp:  Math.random()*0.9+0.3,        // gentler wobble (was 1.2+0.4)
+    bobFreq: Math.random()*1.5+0.8,
+    spawnTs: ts
+  });
+}
+
+function drawDrop(d){
+  const col  = TYPE_COLOR[d.type];
+  const glow = TYPE_GLOW[d.type];
+
+  ctx.save();
+  ctx.translate(d.x, d.y);
+  ctx.rotate(d.angle);
+
+  ctx.shadowColor = glow;
+  ctx.shadowBlur  = 18;
+
+  ctx.font = 'bold 14px Inter, sans-serif';
+  const tw = ctx.measureText(d.formula).width + 28;
+  const th = 30;
+
+  roundRect(ctx,-tw/2,-th/2,tw,th,8);
+  ctx.fillStyle   = col + '28';
+  ctx.fill();
+  ctx.strokeStyle = col;
+  ctx.lineWidth   = 2;
+  ctx.stroke();
+
+  ctx.shadowBlur     = 8;
+  ctx.fillStyle      = '#fff';
+  ctx.textAlign      = 'center';
+  ctx.textBaseline   = 'middle';
+  ctx.fillText(d.formula, 0, 0);
+
+  ctx.beginPath();
+  ctx.arc(tw/2-10, 0, 4, 0, Math.PI*2);
+  ctx.fillStyle  = col;
+  ctx.shadowBlur = 10;
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// ─────────────────────────────────────────────
+// Basket
+// ─────────────────────────────────────────────
+function drawBasket(){
+  const bx  = basket.x;
+  const shy = basket.shake ? Math.sin(Date.now()*0.05)*3 : 0;
+  const by  = BASKET_Y + shy;
+  const col  = TYPE_COLOR[basket.type];
+  const glow = TYPE_GLOW[basket.type];
+
+  ctx.save();
+  ctx.shadowColor = glow;
+  ctx.shadowBlur  = 26;
+
+  const grad = ctx.createLinearGradient(bx,by,bx,by+BASKET_H);
+  grad.addColorStop(0, col+'88');
+  grad.addColorStop(1, col+'22');
+  roundRect(ctx,bx,by,BASKET_W,BASKET_H,10);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = col;
+  ctx.lineWidth   = 2.5;
+  ctx.stroke();
+
+  ctx.shadowBlur = 0;
+  roundRect(ctx,bx+6,by+5,BASKET_W-12,8,4);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fill();
+
+  ctx.fillStyle    = '#fff';
+  ctx.font         = 'bold 13px Orbitron, sans-serif';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(basket.type.toUpperCase(), bx+BASKET_W/2, by+BASKET_H/2+2);
+
+  ctx.beginPath();
+  ctx.moveTo(bx-4,by);
+  ctx.lineTo(bx+BASKET_W+4,by);
+  ctx.strokeStyle = col;
+  ctx.lineWidth   = 3;
+  ctx.shadowColor = glow;
+  ctx.shadowBlur  = 10;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// ─────────────────────────────────────────────
+// Particles
+// ─────────────────────────────────────────────
+let particles = [];
+
+function spawnParticles(x,y,col,success){
+  for(let i=0;i<18;i++){
+    const a = Math.random()*Math.PI*2;
+    const s = Math.random()*5+2;
+    particles.push({x,y, vx:Math.cos(a)*s, vy:Math.sin(a)*s*(success?-1:1),
+                    life:1, col, r:Math.random()*4+2});
+  }
+}
+
+function updateParticles(){
+  particles = particles.filter(p=>{
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.15; p.life-=0.035;
+    ctx.save();
+    ctx.globalAlpha=p.life;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=p.col; ctx.shadowColor=p.col; ctx.shadowBlur=8;
+    ctx.fill(); ctx.restore();
+    return p.life>0;
+  });
+}
+
+// ─────────────────────────────────────────────
+// Feedback text
+// ─────────────────────────────────────────────
+function showFeedback(text,col){
+  const el=document.getElementById('feedback');
+  el.textContent=text; el.style.color=col; el.style.opacity='1';
+  clearTimeout(flashTimer);
+  flashTimer=setTimeout(()=>{ el.style.opacity='0'; },700);
+}
+
+// ─────────────────────────────────────────────
+// Grid (lab aesthetic)
+// ─────────────────────────────────────────────
+function drawGrid(){
+  ctx.save();
+  ctx.strokeStyle='rgba(255,255,255,0.03)';
+  ctx.lineWidth=1;
+  for(let x=0;x<W;x+=40){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for(let y=0;y<H;y+=40){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  ctx.restore();
+}
+
+// ─────────────────────────────────────────────
+// Collision
+// ─────────────────────────────────────────────
+function checkCollisions(){
+  const bL=basket.x, bR=basket.x+BASKET_W;
+  const bT=BASKET_Y, bB=BASKET_Y+BASKET_H;
+  drops=drops.filter(d=>{
+    if(d.y>H+20){
+      loseLife();
+      showFeedback('MISS!','#ff4757');
+      spawnParticles(d.x,H-20,'#ff4757',false);
+      return false;
+    }
+    if(d.y+14>=bT && d.y-14<=bB && d.x>=bL && d.x<=bR){
+      if(d.type===basket.type){
+        score+=10;
         updateHUD();
-        updatePips();
-
-        const lvl = LEVELS[currentLvl];
-        const q = lvl.questions[currentQ];
-
-        // level tag
-        document.getElementById("levelTag").textContent =
-          lvl.icon + " " + lvl.title + ": " + lvl.name;
-
-        // question text
-        document.getElementById("questionText").innerHTML = q.text;
-
-        // visual area
-        const va = document.getElementById("visualArea");
-        va.innerHTML = "";
-
-        if (q.visual === "chip" && q.chipData) {
-          const grid = document.createElement("div");
-          grid.className = "substance-grid";
-          q.chipData.forEach((c) => {
-            const chip = document.createElement("div");
-            chip.className = "substance-chip";
-            chip.innerHTML = `${c.formula}<span class="chip-label">${c.name}</span>`;
-            grid.appendChild(chip);
-          });
-          va.appendChild(grid);
-        } else if (q.visual === "ph") {
-          const pct = (q.phValue / 14) * 100;
-          va.innerHTML = `
-      <div class="ph-scale" style="margin-bottom:6px">
-        <div class="ph-marker" id="phMarker" style="left:0%"></div>
-      </div>
-      <div class="ph-labels">
-        <span>0 — Strongest Acid</span>
-        <span>7 — Neutral</span>
-        <span>14 — Strongest Base</span>
-      </div>`;
-          setTimeout(() => {
-            const m = document.getElementById("phMarker");
-            if (m) m.style.left = pct + "%";
-          }, 60);
-        }
-
-        // options
-        const oa = document.getElementById("optionsArea");
-        oa.innerHTML = "";
-        const letters = ["A", "B", "C", "D"];
-        q.options.forEach((opt, i) => {
-          const btn = document.createElement("button");
-          btn.className = "option-btn";
-          btn.innerHTML = `<span class="opt-letter">${letters[i]}</span>${opt}`;
-          btn.onclick = () => checkAnswer(i);
-          oa.appendChild(btn);
-        });
-
-        document.getElementById("feedback").textContent = "";
-        document.getElementById("feedback").className = "";
+        spawnParticles(d.x,d.y,TYPE_GLOW[d.type],true);
+        showFeedback('+10',TYPE_COLOR[d.type]);
+      } else {
+        loseLife();
+        basket.shake=true;
+        setTimeout(()=>basket.shake=false,400);
+        spawnParticles(d.x,d.y,'#ff4757',false);
+        showFeedback('WRONG!','#ff4757');
       }
+      return false;
+    }
+    return true;
+  });
+}
 
-      function checkAnswer(chosen) {
-        if (answered) return;
-        answered = true;
+function loseLife(){
+  lives=Math.max(0,lives-1);
+  updateHUD();
+  if(lives<=0) endGame();
+}
 
-        const lvl = LEVELS[currentLvl];
-        const q = lvl.questions[currentQ];
-        const opts = document.querySelectorAll(".option-btn");
+function endGame(){
+  state='over';
+  document.getElementById('finalScore').textContent=score;
+  document.getElementById('gameOverScreen').style.display='flex';
+}
 
-        // disable all
-        opts.forEach((b) => (b.disabled = true));
+// ─────────────────────────────────────────────
+// Main Loop
+// ─────────────────────────────────────────────
+let lastTs=0;
 
-        const fb = document.getElementById("feedback");
+function loop(ts){
+  requestAnimationFrame(loop);
+  if(state!=='playing') return;
 
-        if (chosen === q.correct) {
-          score += 10;
-          correctCount++;
-          opts[chosen].classList.add("correct");
-          fb.textContent = "✅ Correct! " + q.explanation;
-          fb.className = "correct";
-          showSnack("+10 pts 🎉");
-        } else {
-          score = Math.max(0, score - 5);
-          wrongCount++;
-          lives--;
-          opts[chosen].classList.add("wrong");
-          opts[q.correct].classList.add("correct");
-          fb.textContent = "❌ Wrong! " + q.explanation;
-          fb.className = "wrong";
-          showSnack("-5 pts 💔");
-        }
+  lastTs=ts;
 
-        updateHUD();
+  ctx.clearRect(0,0,W,H);
+  drawGrid();
 
-        if (lives <= 0) {
-          setTimeout(gameOver, 1600);
-          return;
-        }
+  // Keyboard movement
+  if(keys['ArrowLeft'])  basket.x=Math.max(0,basket.x-basket.speed);
+  if(keys['ArrowRight']) basket.x=Math.min(W-BASKET_W,basket.x+basket.speed);
 
-        // advance
-        setTimeout(() => {
-          currentQ++;
-          if (currentQ >= lvl.questions.length) {
-            // level done
-            currentQ = 0;
-            currentLvl++;
-            if (currentLvl >= LEVELS.length) {
-              victory();
-            } else {
-              nextLevel();
-            }
-          } else {
-            showQuestion();
-          }
-        }, 1800);
-      }
+  // Spawn
+  if(ts-lastDrop>spawnInterval){ spawnDrop(ts); lastDrop=ts; }
 
-      function nextLevel() {
-        const lvl = LEVELS[currentLvl];
-        const overlay = document.getElementById("levelTransition");
-        document.getElementById("ltBadge").textContent = lvl.icon;
-        document.getElementById("ltTitle").textContent =
-          "Level " + (currentLvl + 1) + " Unlocked!";
-        document.getElementById("ltSub").textContent = lvl.name;
-        overlay.classList.add("show");
-        setTimeout(() => {
-          overlay.classList.remove("show");
-          showQuestion();
-        }, 2000);
-      }
+  // Update drops
+  drops.forEach(d=>{
+    d.y+=d.speed;
+    d.wobble+=0.05;
+    d.x+=Math.sin(d.wobble*d.bobFreq)*d.bobAmp;
+    d.x=Math.max(20,Math.min(W-20,d.x));
+    drawDrop(d);
+  });
 
-      function gameOver() {
-        document.getElementById("gameOverScore").textContent = score;
-        document.getElementById("goCorrect").textContent = correctCount;
-        document.getElementById("goWrong").textContent = wrongCount;
-        document.getElementById("goLevel").textContent = currentLvl + 1;
-        showScreen("gameOverScreen");
-      }
+  checkCollisions();
+  updateParticles();
+  drawBasket();
+}
 
-      function victory() {
-        document.getElementById("victoryScore").textContent = score;
-        document.getElementById("vCorrect").textContent = correctCount;
-        document.getElementById("vWrong").textContent = wrongCount;
-        document.getElementById("vLives").textContent = lives;
-        showScreen("victoryScreen");
-      }
+requestAnimationFrame(loop);
 
-      /* ═══════════════════════════════════════════════════════════
-   UI HELPERS
-═══════════════════════════════════════════════════════════ */
-      function showSnack(msg) {
-        const s = document.getElementById("snack");
-        s.textContent = msg;
-        s.classList.add("show");
-        if (snackTimer) clearTimeout(snackTimer);
-        snackTimer = setTimeout(() => s.classList.remove("show"), 1400);
-      }
-
-      function showModal() {
-        document.getElementById("howModal").classList.remove("hidden");
-      }
-      function hideModal(e) {
-        if (!e || e.target === document.getElementById("howModal")) {
-          document.getElementById("howModal").classList.add("hidden");
-        }
-      }
-    </script>
-  </body>
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+</script>
+</body>
 </html>
